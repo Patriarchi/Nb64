@@ -7,12 +7,12 @@
 
 rm(list = ls())
 library(tidyverse)
-library(dplyr)
 library(plotly)
 library(lattice)
 library(htmlwidgets)
 library(cowplot)
 library(plotrix)
+library(viridis)
 
 #set working directory with data (will also be output folder)
 setwd("K:\\...")
@@ -123,7 +123,7 @@ rm(sublist)
 rm(df)
 
 
-# ============================== Housekeeping ==================================
+#=============================== Housekeeping ==================================
 
 # This section exists to clean up the column names, add experimental information and to convert the time vector to minutes
 
@@ -275,7 +275,7 @@ for(i in 1:length(df.list)){
   df.list[[i]][[4]] <- homography
 }
 
-# =============== Application of Homography to other keypoints =================
+#================ Application of Homography to other keypoints =================
 
 colnums <- seq(from=2, to=1 + (keypoints-4)*3, by=3)
 
@@ -958,7 +958,7 @@ for(i in 1:length(combodf_use[[1]])){
 }
 combodf_use <- mutate(combodf_use, Compound = as.factor(Compound))
 
-#Order the factor levels
+#Order the factor levels, this is useful to set the order of the factors on plots
 combodf_use$Nanobody <- factor(combodf_use$Nanobody, levels = c("NbAlpha", "Nb64")) 
 combodf_use$Compound <- factor(combodf_use$Compound, levels = c("NaCl", "Fen1", "Fen2", "mean_Fen")) 
 
@@ -969,12 +969,77 @@ combodf_use <- select(combodf_use, !Cpd)
 #This df can now be used to plot, either in R or also using softwares like GraphPad Prism
 
 
+#=============================== Speed DF ======================================
+
+for(i in 1:length(df.list)){
+  mouseinfo_long <- cbind(rep(df.list[[i]][[5]][1, 35], length(df.list[[i]][[13]][[1]])), rep(df.list[[i]][[5]][1, 36], length(df.list[[i]][[13]][[1]])), rep(df.list[[i]][[5]][1, 37], length(df.list[[1]][[13]][[1]])),
+                          rep(df.list[[i]][[5]][1, 38], length(df.list[[i]][[13]][[1]])))
+  mouseinfo_short <- cbind(rep(df.list[[i]][[5]][1, 35], length(df.list[[i]][[8]][[1]])), rep(df.list[[i]][[5]][1, 36], length(df.list[[i]][[8]][[1]])), rep(df.list[[i]][[5]][1, 37], length(df.list[[1]][[8]][[1]])),
+                           rep(df.list[[i]][[5]][1, 38], length(df.list[[i]][[8]][[1]])))
+  if(i == 1){
+    speed <- cbind(df.list[[i]][[13]]$reltime, df.list[[i]][[13]]$velocity, mouseinfo_long, rep("Post", length(df.list[[i]][[13]][[1]])))
+    colnames(speed)[1:7] <- c("Time", "Velocity", "ID", "Group", "Compound", "Run", "Phase")
+    
+    
+    speed_base <- cbind(df.list[[i]][[8]]$reltime, df.list[[i]][[8]]$velocity, mouseinfo_short, rep("Baseline", length(df.list[[i]][[8]][[1]])))
+    colnames(speed_base)[1:7] <- c("Time", "Velocity", "ID", "Group", "Compound", "Run", "Phase")
+    
+  }else{
+    
+    midstep1 <- cbind(df.list[[i]][[13]]$reltime, df.list[[i]][[13]]$velocity, mouseinfo_long, rep("Post", length(df.list[[i]][[13]][[1]])))
+    colnames(midstep1)[1:7] <- c("Time", "Velocity", "ID", "Group", "Compound", "Run", "Phase")
+    
+    speed <- rbind(speed, midstep1)
+    
+    midstep2 <- cbind(df.list[[i]][[8]]$reltime, df.list[[i]][[8]]$velocity, mouseinfo_short, rep("Baseline", length(df.list[[i]][[8]][[1]])))
+    colnames(midstep2)[1:7] <- c("Time", "Velocity", "ID", "Group", "Compound", "Run", "Phase")
+    
+    speed_base <- rbind(speed_base, midstep2)
+    
+  }
+  
+}
+
+speed <- rbind(speed, speed_base)
+speed <- as.data.frame(speed)
+speed <- mutate(speed, Time = as.numeric(Time)/60, Velocity = as.numeric(Velocity), ID = as.character(ID), Group = as.character(Group), Compound = as.character(Compound),
+                Run = as.character(Run), Phase = as.character(Phase))
+
+#for plotting purposes
+baseline_length <- 5
+gap <- 0.5
+
+speed <- speed %>%
+  mutate(Mins = ifelse(Phase == "Baseline", Time, Time + baseline_length + gap))
+
+speed <- speed %>%
+  mutate(Group = ifelse(Group == "Cn", "NbAlpha", "Nb64"))
+
+speed$Compound <- factor(speed$Compound, levels = c("NaCl", "Fen1", "Fen2")) 
+speed$Nanobody <- factor(speed$Group, levels = c("NbAlpha", "Nb64")) 
+
+speed <- speed %>%
+  arrange(Group, ID) %>%
+  mutate(ID = factor(ID, levels = unique(ID)))
+
+# Heatmap code
+ggplot(speed, aes(x = Mins, y = ID, fill = Velocity))+
+  geom_tile() +
+  facet_grid(Nanobody ~ Compound, scales = "free_y", space = "free_y", switch = "y") +
+  scale_fill_viridis_c(option = "magma", name = "Velocity (cm/s)", trans = "log1p")+
+  theme_minimal() +
+  theme(axis.title.y = element_blank(),
+        strip.text = element_text(face = "bold"),
+        panel.spacing = unit(1, "lines"),
+        axis.text.y = element_blank()) +
+  xlab("Time (mins)")
+
 #================ Tornado plots with comparable colour scheme ==================
 
 # In the above code, the speed colour code is not comparable across recordings.
 # If a common colour code is wanted, one has to extract the bin data from each mouse 
 # and create a single data frame with speed measurements for all timepoints (= speed in line 989).
-# Find code for this in the next section
+# Find code for this in the previous section
 # With this kind of data frame, one can also show the speed as heat maps (like for photometry measurements) etc.
 
 
@@ -1018,101 +1083,20 @@ for(a in 1:length(df.list)){
 }
 
 
-#=============================== Speed DF ======================================
-
-for(i in 1:length(df.list)){
-  mouseinfo_long <- cbind(rep(df.list[[i]][[5]][1, 35], length(df.list[[i]][[13]][[1]])), rep(df.list[[i]][[5]][1, 36], length(df.list[[i]][[13]][[1]])), rep(df.list[[i]][[5]][1, 37], length(df.list[[1]][[13]][[1]])),
-                     rep(df.list[[i]][[5]][1, 38], length(df.list[[i]][[13]][[1]])))
-  mouseinfo_short <- cbind(rep(df.list[[i]][[5]][1, 35], length(df.list[[i]][[8]][[1]])), rep(df.list[[i]][[5]][1, 36], length(df.list[[i]][[8]][[1]])), rep(df.list[[i]][[5]][1, 37], length(df.list[[1]][[8]][[1]])),
-                          rep(df.list[[i]][[5]][1, 38], length(df.list[[i]][[8]][[1]])))
-  if(i == 1){
-    speed <- cbind(df.list[[i]][[13]]$reltime, df.list[[i]][[13]]$velocity, mouseinfo_long, rep("Post", length(df.list[[i]][[13]][[1]])))
-    colnames(speed)[1:7] <- c("Time", "Velocity", "ID", "Group", "Compound", "Run", "Phase")
-    
-    
-    speed_base <- cbind(df.list[[i]][[8]]$reltime, df.list[[i]][[8]]$velocity, mouseinfo_short, rep("Baseline", length(df.list[[i]][[8]][[1]])))
-    colnames(speed_base)[1:7] <- c("Time", "Velocity", "ID", "Group", "Compound", "Run", "Phase")
-
-  }else{
-      
-      midstep1 <- cbind(df.list[[i]][[13]]$reltime, df.list[[i]][[13]]$velocity, mouseinfo_long, rep("Post", length(df.list[[i]][[13]][[1]])))
-      colnames(midstep1)[1:7] <- c("Time", "Velocity", "ID", "Group", "Compound", "Run", "Phase")
-     
-       speed <- rbind(speed, midstep1)
-       
-       midstep2 <- cbind(df.list[[i]][[8]]$reltime, df.list[[i]][[8]]$velocity, mouseinfo_short, rep("Baseline", length(df.list[[i]][[8]][[1]])))
-       colnames(midstep2)[1:7] <- c("Time", "Velocity", "ID", "Group", "Compound", "Run", "Phase")
-       
-       speed_base <- rbind(speed_base, midstep2)
-    
-  }
-
-}
-
-speed <- rbind(speed, speed_base)
-speed <- as.data.frame(speed)
-speed <- mutate(speed, Time = as.numeric(Time)/60, Velocity = as.numeric(Velocity), ID = as.character(ID), Group = as.character(Group), Compound = as.character(Compound),
-                Run = as.character(Run), Phase = as.character(Phase))
-
-#for plotting purposes
-baseline_length <- 5
-gap <- 0.5
-
-speed <- speed %>%
-  mutate(Mins = ifelse(Phase == "Baseline", Time, Time + baseline_length + gap))
-
-speed <- speed %>%
-  mutate(Group = ifelse(Group == "Cn", "NbAlpha", "Nb64"))
-
-speed$Compound <- factor(speed$Compound, levels = c("NaCl", "Fen1", "Fen2")) 
-speed$Nanobody <- factor(speed$Group, levels = c("NbAlpha", "Nb64")) 
-
-speed <- speed %>%
-  arrange(Group, ID) %>%
-  mutate(ID = factor(ID, levels = unique(ID)))
-
-# Heatmap code
-library(viridis)
-ggplot(speed, aes(x = Mins, y = ID, fill = Velocity))+
-  geom_tile() +
-  facet_grid(Nanobody ~ Compound, scales = "free_y", space = "free_y", switch = "y") +
-  scale_fill_viridis_c(option = "magma", name = "Velocity (cm/s)", trans = "log1p")+
-  theme_minimal() +
-  theme(axis.title.y = element_blank(),
-        strip.text = element_text(face = "bold"),
-        panel.spacing = unit(1, "lines"),
-        axis.text.y = element_blank()) +
-  xlab("Time (mins)")
-
-
 #============================= Saving Figures ==================================
 
 for(a in 1:length(df.list)){
   for(i in 1:length(df.list[[a]])){
-    if(i == 10 & length(df.list[[a]][[i]]) != 0){
-      fig <- df.list[[a]][[i]] %>%
-        plotly_build
-      name <- paste(df.list[[a]][[5]]$ID[[1]], df.list[[a]][[5]]$Cpd[[1]], df.list[[a]][[5]]$Dose[[1]], df.list[[a]][[5]]$other[[1]], df.list[[a]][[5]]$phase[[1]],
-                    "binned_points", sep = "_")
-      saveWidget(fig, file = paste(name, "html", sep = "."))
-    }else if(i == 11 & length(df.list[[a]][[i]]) != 0){
-      fig <- df.list[[a]][[i]] %>%
-        plotly_build
-      name <- paste(df.list[[a]][[5]]$ID[[1]], df.list[[a]][[5]]$Cpd[[1]], df.list[[a]][[5]]$Dose[[1]], df.list[[a]][[5]]$other[[1]], df.list[[a]][[5]]$phase[[1]],
-                    "binned_lines", sep = "_")
-      saveWidget(fig, file = paste(name, "html", sep = "."))
-      }else if(i == 15 & length(df.list[[a]][[i]]) != 0){
-      fig <- df.list[[a]][[i]] %>%
-        plotly_build
-      name <- paste(df.list[[a]][[5]]$ID[[1]], df.list[[a]][[5]]$Cpd[[1]], df.list[[a]][[5]]$Dose[[1]], df.list[[a]][[5]]$other[[1]], df.list[[a]][[18]]$phase[[1]],
-                    "binned_points", sep = "_")
-      saveWidget(fig, file = paste(name, "html", sep = "."))
-    }else if(i == 16 & length(df.list[[a]][[i]]) != 0){
-      fig <- df.list[[a]][[i]] %>%
-        plotly_build
-      name <- paste(df.list[[a]][[5]]$ID[[1]], df.list[[a]][[5]]$Cpd[[1]], df.list[[a]][[5]]$Dose[[1]], df.list[[a]][[5]]$other[[1]], df.list[[a]][[18]]$phase[[1]],
-                    "binned_lines", sep = "_")
-      saveWidget(fig, file = paste(name, "html", sep = "."))
+    if(i == 7 & length(df.list[[a]][[i]]) != 0){
+      
+      ggsave(paste(df.list[[a]][[5]]$ID[[1]], df.list[[a]][[5]]$Cpd[[1]], df.list[[a]][[5]]$Dose[[1]],
+                   "twoDtrace_baseline.jpeg", sep = "_"), plot = df.list[[a]][[i]])
+      
+    }else if(i == 12 & length(df.list[[a]][[i]]) != 0){
+       
+      ggsave(paste(df.list[[a]][[5]]$ID[[1]], df.list[[a]][[5]]$Cpd[[1]], df.list[[a]][[5]]$Dose[[1]],
+                   "twoDtrace_post.jpeg", sep = "_"), plot = df.list[[a]][[i]])
+      
     }
     
   }
