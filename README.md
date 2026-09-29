@@ -44,3 +44,9 @@ More details can be found as comments in the code.
 - **Speed DF:** This is a data frame where the speed data across time is extracted for each recording. This can be used to plot speed across time in multiple ways and is necessary if a comparable speed colour code is necessary for the tornado plots (next section). Contains a code chunk for a heatmap of speed, which can be saved.
 - **Tornado plots with comparable colour scheme:** The tornado plots as of now do not have comparable colour coding of speeds across recordings, which is necessary when the data should be visually comparable. For this, it is necessary to have all speed data from all recordings (previous section). The tornado plots can be plotted as points instead of lines (code in the "Calculation of Outcome Variables" section). The plots are automatically saved in the working directory. 
 - **Saving Figures:** Currently only saves the 2D trajectory plots, also other plots and dfs could be saved with small adjustments. 
+
+
+
+### Notes on File "nLightG2_HPC_Photometry_v20250213pl.m"
+
+#### This was written on Matlab for analysis of the Fiber Photometry data
