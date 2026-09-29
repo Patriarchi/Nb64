@@ -1038,7 +1038,7 @@ ggplot(speed, aes(x = Mins, y = ID, fill = Velocity))+
 
 # In the above code, the speed colour code is not comparable across recordings.
 # If a common colour code is wanted, one has to extract the bin data from each mouse 
-# and create a single data frame with speed measurements for all timepoints (= speed in line 989).
+# and create a single data frame with speed measurements for all timepoints (= speed in line 1054).
 # Find code for this in the previous section
 # With this kind of data frame, one can also show the speed as heat maps (like for photometry measurements) etc.
 
